@@ -10,7 +10,7 @@ import snntorch as snn
 
 
 
-def _extract_snntorch_module(module: torch.nn.Module) -> Optional[nir.NIRNode]:
+def _extract_snntorch_module(module: torch.nn.Module, prevModel: torch.nn.Module | None) -> Optional[nir.NIRNode]:
     """Convert a single snnTorch module to the equivalent object in the Neuromorphic
     Intermediate Representation (NIR). This function is used internally by the export_to_nir
     function to convert each submodule/layer of the network to the NIR.
@@ -105,6 +105,14 @@ def _extract_snntorch_module(module: torch.nn.Module) -> Optional[nir.NIRNode]:
         v_leak = np.zeros_like(beta)
         w_in = tau_syn / dt
 
+        num_neurons = 1     # Set default number of neurons to 1
+        # Check if previous model was a Linear Layer
+        if isinstance(prevModel, torch.nn.Linear):
+            # The output size of the previous layer will correspond to the number of neurons in the current layer
+            num_neurons = prevModel.out_features
+        else:
+            print("Unable to determine number of neurons in the current layer. Defaulting to 1.")
+
         return nir.CubaLIF(
             tau_syn=tau_syn,
             tau_mem=tau_mem,
@@ -112,6 +120,7 @@ def _extract_snntorch_module(module: torch.nn.Module) -> Optional[nir.NIRNode]:
             v_leak=v_leak,
             r=r,
             w_in=w_in,
+            num_neurons=num_neurons,
         )
 
     elif isinstance(module, snn.RLeaky):
